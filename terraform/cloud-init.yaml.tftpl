@@ -1,0 +1,70 @@
+#cloud-config
+hostname: immich
+manage_etc_hosts: true
+timezone: ${timezone}
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - qemu-guest-agent
+
+users:
+  - default
+  - name: ${admin_username}
+    gecos: Immich administrator
+    groups: [adm, sudo, docker]
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - '${ssh_public_key}'
+
+write_files:
+  - path: /usr/local/sbin/immich-first-boot
+    owner: root:root
+    permissions: '0700'
+    encoding: b64
+    content: ${base64encode(<<-SCRIPT
+      #!/usr/bin/env bash
+      set -Eeuo pipefail
+
+      export DEBIAN_FRONTEND=noninteractive
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      chmod a+r /etc/apt/keyrings/docker.asc
+      . /etc/os-release
+      printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu %s stable\n' \
+        "$(dpkg --print-architecture)" "$VERSION_CODENAME" > /etc/apt/sources.list.d/docker.list
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      systemctl enable --now docker
+
+      curl -fsSL https://pkgs.netbird.io/install.sh | sh
+      NETBIRD_SETUP_KEY="$(printf '%s' '${netbird_setup_key_b64}' | base64 -d)"
+      netbird up --setup-key "$NETBIRD_SETUP_KEY" --hostname immich
+      unset NETBIRD_SETUP_KEY
+
+      install -d -m 0750 /opt/immich/library /opt/immich/postgres
+      cd /opt/immich
+      curl -fsSL "https://github.com/immich-app/immich/releases/download/${immich_version}/docker-compose.yml" -o docker-compose.yml
+      DB_PASSWORD="$(printf '%s' '${immich_database_password}' | base64 -d)"
+      cat > .env <<EOF
+      UPLOAD_LOCATION=/opt/immich/library
+      DB_DATA_LOCATION=/opt/immich/postgres
+      TZ=${timezone}
+      IMMICH_VERSION=${immich_version}
+      DB_PASSWORD=$DB_PASSWORD
+      DB_USERNAME=postgres
+      DB_DATABASE_NAME=immich
+      EOF
+      unset DB_PASSWORD
+      chmod 0600 .env
+      docker compose pull
+      docker compose up -d
+    SCRIPT
+    )}
+
+runcmd:
+  - [bash, -c, /usr/local/sbin/immich-first-boot]

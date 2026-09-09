@@ -26,6 +26,9 @@ The following are working:
 - The host is reachable over NetBird.
 - This laptop and my phone can connect to the Proxmox host through NetBird.
 - The installation USB is no longer required for normal boot.
+- An Ubuntu 24.04 Immich VM is provisioned with Terraform.
+- Immich is reachable from the phone and laptop over NetBird.
+- Test image uploads have completed successfully.
 
 Host addresses, NetBird names, account identifiers, fingerprints, and other environment-specific values are intentionally omitted.
 
@@ -38,6 +41,6 @@ I also learned to identify disks carefully before mounting or writing to them. D
 ## Next learning goals
 
 1. Keep the Proxmox host reachable and manageable over NetBird.
-2. Create a small test VM using infrastructure as code.
-3. Install and test Immich in the VM before purchasing dedicated storage.
+2. Add backups and recovery procedures for Immich.
+3. Evaluate dedicated storage before expanding the photo library.
 4. Document decisions, failures, and lessons learned as the setup evolves.

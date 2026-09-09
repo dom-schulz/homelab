@@ -23,3 +23,7 @@ The examples and decisions here are specific to my learning process. They may be
 The current project is centered on learning to operate a headless Proxmox host, manage access through NetBird, provision virtual machines with infrastructure as code, and experiment with self-hosted applications such as Immich.
 
 The project will grow incrementally. Documentation should preserve the reasoning and learning behind each step, including failures and corrections, instead of pretending that the process was linear.
+
+## Working deployments
+
+- [Terraform Immich deployment notes](docs/terraform-variables.md): VM configuration, secrets, Proxmox permissions, and verification.

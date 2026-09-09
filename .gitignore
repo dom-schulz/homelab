@@ -1,0 +1,11 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+.env
+*.secret
+generated/
+
+AGENTS.md
+CLAUDE.md
