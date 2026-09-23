@@ -1,46 +1,21 @@
 # Initial setup
 
-This document records my first working milestone while building the homelab. It is a personal learning log, not a complete recipe for reproducing my home network.
+This document records the first working homelab milestone and the current direction. It is a personal learning log, not a complete reproduction guide.
 
 ## Starting point
 
-I repurposed an HP ENVY x360 laptop with a broken internal display as the server. I installed Proxmox VE using an automated installer image because the display could not be relied on during installation.
+I repurposed an HP ENVY x360 laptop with a broken internal display as a headless Proxmox server. The host is reachable over the local network and NetBird. The system has limited resources, so the platform is intentionally small and disposable.
 
-The server has limited resources, so the initial goal is to learn the workflow with a small number of services rather than build some large production platform immediately.
+## Current direction
 
-## Problems I worked through
+The Immich experiment proved that the VM can host self-managed workloads. Immich Terraform is no longer the target architecture and can be removed when the runner platform is ready; preserve any data first if that ever changes.
 
-- The internal display fades to black after boot, while the operating system continues running.
-- The external display did not provide a dependable installation interface.
-- Wi-Fi had to be prepared before the machine could be managed headlessly.
-- A USB Ethernet adapter initially had connection problems, but wired networking became available after reconnecting it.
-- Closing the lid powered the laptop down. I changed the systemd logind lid behavior so the server can run with the lid closed.
-- Because the machine is headless, SSH is the primary administration method as needed.
+The next platform milestone is:
 
-## Current milestone
+- a Terraform/cloud-init Ubuntu runner-template builder;
+- a manually validated Proxmox golden template;
+- a future outbound-only controller that creates one fresh VM per GitHub Actions job;
+- Docker builds pushed to GHCR using immutable commit-SHA tags;
+- a small k3s application and external monitoring stack later.
 
-The following are working:
-
-- Proxmox VE boots from the laptop's internal storage.
-- The Proxmox host is reachable over the local network.
-- The host is reachable over NetBird.
-- This laptop and my phone can connect to the Proxmox host through NetBird.
-- The installation USB is no longer required for normal boot.
-- An Ubuntu 24.04 Immich VM is provisioned with Terraform.
-- Immich is reachable from the phone and laptop over NetBird.
-- Test image uploads have completed successfully.
-
-Host addresses, NetBird names, account identifiers, fingerprints, and other environment-specific values are intentionally omitted.
-
-## Lessons learned
-
-The display problem made a black screen misleading at first, it did not necessarily mean that Ubuntu or Proxmox had failed. Network connectivity, SSH, and boot logs were better indicators of whether the machine was actually running.
-
-I also learned to identify disks carefully before mounting or writing to them. Device names can change depending on which computer or USB device is connected, so stable identifiers such as filesystem UUIDs are safer than assuming a device name will remain the same.
-
-## Next learning goals
-
-1. Keep the Proxmox host reachable and manageable over NetBird.
-2. Add backups and recovery procedures for Immich.
-3. Evaluate dedicated storage before expanding the photo library.
-4. Document decisions, failures, and lessons learned as the setup evolves.
+See terraform/README.md and plans/ephemeral-github-runners.md for the implementation boundary and decisions.

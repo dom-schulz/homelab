@@ -1,25 +1,14 @@
 proxmox_api_url = "https://proxmox.example:8006/"
-
-proxmox_insecure_tls     = true
-
-proxmox_node         = "pve"
-proxmox_ssh_address  = "192.168.1.50"
-proxmox_ssh_username  = "root"
-vm_storage     = "local-lvm"
-image_storage  = "local"
+proxmox_insecure_tls = true
+proxmox_node = "pve"
+proxmox_ssh_address = "192.168.1.50"
+proxmox_ssh_username = "root"
+vm_storage = "local-lvm"
+image_storage = "local"
 snippet_storage = "local"
-
-network_bridge    = "vmbr0"
-vm_ipv4_address  = "dhcp"
-# vm_ipv4_gateway = "192.168.1.1"
-
+network_bridge = "vmbr0"
+vm_ipv4_address = "dhcp"
 admin_username = "ubuntu"
 ssh_public_key = "ssh-ed25519 AAAA... replace-me"
-
-# Export these in the Terraform workstation environment; they are intentionally
-# not Terraform variables and cannot be overridden by terraform.tfvars.
-# export PROXMOX_VE_API_TOKEN='terraform@pam!homelab=replace-me'
-# export NETBIRD_SETUP_KEY='short-lived-key-scoped-to-immich-services'
-# export IMMICH_DATABASE_PASSWORD='replace-me-with-a-long-random-password'
-immich_version = "v1.132.3"
-timezone       = "America/Los_Angeles"
+# Pick an unused VM ID for the temporary builder.
+builder_vm_id = 910

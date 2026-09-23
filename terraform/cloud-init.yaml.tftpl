@@ -1,70 +1,48 @@
 #cloud-config
-hostname: immich
+hostname: ${hostname}
 manage_etc_hosts: true
-timezone: ${timezone}
 package_update: true
 package_upgrade: true
 packages:
   - ca-certificates
   - curl
-  - gnupg
+  - git
+  - jq
   - qemu-guest-agent
-
+  - tar
+  - unzip
 users:
   - default
   - name: ${admin_username}
-    gecos: Immich administrator
-    groups: [adm, sudo, docker]
+    gecos: Runner template administrator
+    groups: [adm, sudo]
     shell: /bin/bash
     lock_passwd: true
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
       - '${ssh_public_key}'
-
 write_files:
-  - path: /usr/local/sbin/immich-first-boot
+  - path: /usr/local/sbin/prepare-runner-template
     owner: root:root
-    permissions: '0700'
+    permissions: '0750'
     encoding: b64
     content: ${base64encode(<<-SCRIPT
       #!/usr/bin/env bash
       set -Eeuo pipefail
-
-      export DEBIAN_FRONTEND=noninteractive
-      install -m 0755 -d /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-      chmod a+r /etc/apt/keyrings/docker.asc
-      . /etc/os-release
-      printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu %s stable\n' \
-        "$(dpkg --print-architecture)" "$VERSION_CODENAME" > /etc/apt/sources.list.d/docker.list
-      apt-get update
-      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-      systemctl enable --now docker
-
-      curl -fsSL https://pkgs.netbird.io/install.sh | sh
-      NETBIRD_SETUP_KEY="$(printf '%s' '${netbird_setup_key_b64}' | base64 -d)"
-      netbird up --setup-key "$NETBIRD_SETUP_KEY" --hostname immich
-      unset NETBIRD_SETUP_KEY
-
-      install -d -m 0750 /opt/immich/library /opt/immich/postgres
-      cd /opt/immich
-      curl -fsSL "https://github.com/immich-app/immich/releases/download/${immich_version}/docker-compose.yml" -o docker-compose.yml
-      DB_PASSWORD="$(printf '%s' '${immich_database_password}' | base64 -d)"
-      cat > .env <<EOF
-      UPLOAD_LOCATION=/opt/immich/library
-      DB_DATA_LOCATION=/opt/immich/postgres
-      TZ=${timezone}
-      IMMICH_VERSION=${immich_version}
-      DB_PASSWORD=$DB_PASSWORD
-      DB_USERNAME=postgres
-      DB_DATABASE_NAME=immich
-      EOF
-      unset DB_PASSWORD
-      chmod 0600 .env
-      docker compose pull
-      docker compose up -d
+      test "$(id -u)" -eq 0 || { echo 'Run as root.' >&2; exit 1; }
+      systemctl stop actions.runner.* 2>/dev/null || true
+      rm -rf /opt/actions-runner/_work /opt/actions-runner/.credentials* /opt/actions-runner/.runner 2>/dev/null || true
+      docker system prune --all --force 2>/dev/null || true
+      rm -f /etc/machine-id
+      touch /etc/machine-id
+      cloud-init clean --logs --seed
+      journalctl --rotate || true
+      journalctl --vacuum-time=1s || true
+      history -c || true
+      sync
+      echo 'Template cleaned. Shut down this VM and convert it to a Proxmox template.'
     SCRIPT
     )}
-
 runcmd:
-  - [bash, -c, /usr/local/sbin/immich-first-boot]
+  - [bash, -c, "install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc && . /etc/os-release && printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu %s stable\\n' \\"$(dpkg --print-architecture)\\" \\"$VERSION_CODENAME\\" > /etc/apt/sources.list.d/docker.list && apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin && systemctl enable docker qemu-guest-agent"]
+  - [bash, -c, "usermod -aG docker ${admin_username} && install -d -o ${admin_username} -g ${admin_username} /opt/actions-runner"]

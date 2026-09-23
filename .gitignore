@@ -6,6 +6,7 @@ terraform.tfvars
 .env
 *.secret
 generated/
+plans/
 
 AGENTS.md
 CLAUDE.md

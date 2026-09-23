@@ -1,19 +1,12 @@
-output "vm_id" {
-  description = "Proxmox VM ID."
-  value       = proxmox_virtual_environment_vm.immich.vm_id
+output "builder_vm_id" {
+  description = "Temporary VM ID used to build the runner template."
+  value = proxmox_virtual_environment_vm.runner_template_builder.vm_id
 }
-
-output "vm_name" {
-  description = "Proxmox VM name."
-  value       = proxmox_virtual_environment_vm.immich.name
+output "builder_vm_name" {
+  description = "Temporary builder VM name."
+  value = proxmox_virtual_environment_vm.runner_template_builder.name
 }
-
-output "vm_ipv4_addresses" {
-  description = "IPv4 addresses reported by the QEMU guest agent after boot."
-  value       = proxmox_virtual_environment_vm.immich.ipv4_addresses
-}
-
-output "immich_url_hint" {
-  description = "Use the VM's NetBird address with this port after enrollment."
-  value       = "http://<immich-netbird-ip>:2283"
+output "template_conversion_note" {
+  description = "Cleanup and conversion to a Proxmox template are deliberate operator actions."
+  value = "Run /usr/local/sbin/prepare-runner-template, shut down VM ${var.builder_vm_id}, then convert it to a Proxmox template."
 }
