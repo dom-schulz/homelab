@@ -10,3 +10,8 @@ plans/
 
 AGENTS.md
 CLAUDE.md
+
+terraform/netbird/.terraform/
+terraform/netbird/*.tfstate
+terraform/netbird/*.tfstate.*
+terraform/netbird/terraform.tfvars

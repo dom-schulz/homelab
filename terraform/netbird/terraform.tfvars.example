@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars locally. Do not commit the copy.
+runner_address = "<runner-ip>/32"
