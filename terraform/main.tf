@@ -1,9 +1,10 @@
 locals {
   ubuntu_image_url = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
   cloud_init_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-    admin_username = var.admin_username
-    ssh_public_key = var.ssh_public_key
-    hostname       = var.builder_name
+    admin_username         = var.admin_username
+    builder_debug_password = var.builder_debug_password
+    ssh_public_key         = var.ssh_public_key
+    hostname               = var.builder_name
   })
 }
 resource "proxmox_download_file" "ubuntu_cloud_image" {
@@ -29,6 +30,7 @@ resource "proxmox_virtual_environment_vm" "runner_template_builder" {
   description     = "Temporary builder for the ephemeral GitHub Actions runner template; convert manually after validation."
   on_boot         = false
   started         = false
+  template        = var.builder_is_template
   stop_on_destroy = true
   cpu {
     cores = var.builder_cpu_cores
@@ -38,7 +40,12 @@ resource "proxmox_virtual_environment_vm" "runner_template_builder" {
     dedicated = var.builder_memory_mb
   }
   agent {
+    # Keep the virtio agent channel, but do not wait for an IP: this builder is
+    # created stopped and cloud-init installs the agent after a manual start.
     enabled = true
+    wait_for_ip {
+      disabled = true
+    }
   }
   disk {
     datastore_id = var.vm_storage

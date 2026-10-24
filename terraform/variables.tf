@@ -53,6 +53,19 @@ variable "admin_username" {
   default = "ubuntu"
 }
 
+variable "builder_debug_password" {
+  type        = string
+  sensitive   = true
+  nullable    = true
+  default     = null
+  description = "Temporary password for console debugging; omit before converting the VM to a template."
+
+  validation {
+    condition     = var.builder_debug_password == null || length(var.builder_debug_password) >= 12
+    error_message = "builder_debug_password must be at least 12 characters when provided."
+  }
+}
+
 variable "ssh_public_key" {
   type = string
 }
@@ -60,6 +73,12 @@ variable "ssh_public_key" {
 variable "builder_name" {
   type    = string
   default = "gha-runner-template-builder"
+}
+
+variable "builder_is_template" {
+  type        = bool
+  default     = false
+  description = "Set to true after the builder is cleaned and converted with qm template; Proxmox cannot convert a template back to a VM."
 }
 
 variable "builder_vm_id" {

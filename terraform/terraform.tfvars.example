@@ -12,3 +12,5 @@ admin_username = "ubuntu"
 ssh_public_key = "ssh-ed25519 AAAA... replace-me"
 # Pick an unused VM ID for the temporary builder.
 builder_vm_id = 910
+# Set to true only after the builder is cleaned and converted with qm template.
+builder_is_template = false
