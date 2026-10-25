@@ -33,12 +33,23 @@ write_files:
       #!/usr/bin/env bash
       set -Eeuo pipefail
       test "$(id -u)" -eq 0 || { echo 'Run as root.' >&2; exit 1; }
+      remove_ssh_keys=false
+      case "$*" in
+        '') ;;
+        --remove-ssh-keys) remove_ssh_keys=true ;;
+        *) echo 'Usage: prepare-runner-template [--remove-ssh-keys]' >&2; exit 2 ;;
+      esac
       systemctl stop actions.runner.* 2>/dev/null || true
       rm -rf /opt/actions-runner/_work /opt/actions-runner/.credentials* /opt/actions-runner/.runner 2>/dev/null || true
       docker system prune --all --force 2>/dev/null || true
       rm -f /etc/machine-id
       touch /etc/machine-id
       cloud-init clean --logs --seed
+      if [[ "$remove_ssh_keys" == true ]]; then
+        # Clones then accept SSH only for keys their own user data adds.
+        rm -f /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys
+        echo 'Removed authorized SSH keys; this session stays open until you log out.'
+      fi
       journalctl --rotate || true
       journalctl --vacuum-time=1s || true
       history -c || true

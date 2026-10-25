@@ -1,0 +1,24 @@
+name: Runner smoke test
+
+# Manual trigger only: pull requests must never run on the homelab runner.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: [self-hosted, homelab-ephemeral]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Show runner identity
+        run: |
+          hostname
+          id
+          uname -a
+      - name: Check Docker
+        run: |
+          docker version
+          docker run --rm hello-world
