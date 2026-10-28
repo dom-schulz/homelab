@@ -53,6 +53,18 @@ variable "admin_username" {
   default = "ubuntu"
 }
 
+variable "runner_version" {
+  type        = string
+  default     = "2.338.1"
+  description = "actions/runner release baked into the template; runners auto-update at startup when it falls behind."
+}
+
+variable "runner_sha256" {
+  type        = string
+  default     = "08e9ccb3604d2462c24b5e33604dc30810296ca15cc65f23cffd4317eb144c37"
+  description = "SHA256 of actions-runner-linux-x64-<runner_version>.tar.gz from the release notes."
+}
+
 variable "builder_debug_password" {
   type        = string
   sensitive   = true

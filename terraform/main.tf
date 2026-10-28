@@ -5,6 +5,8 @@ locals {
     builder_debug_password = var.builder_debug_password
     ssh_public_key         = var.ssh_public_key
     hostname               = var.builder_name
+    runner_version         = var.runner_version
+    runner_sha256          = var.runner_sha256
   })
 }
 resource "proxmox_download_file" "ubuntu_cloud_image" {

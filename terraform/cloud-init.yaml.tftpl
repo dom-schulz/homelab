@@ -39,8 +39,8 @@ write_files:
         --remove-ssh-keys) remove_ssh_keys=true ;;
         *) echo 'Usage: prepare-runner-template [--remove-ssh-keys]' >&2; exit 2 ;;
       esac
-      systemctl stop actions.runner.* 2>/dev/null || true
-      rm -rf /opt/actions-runner/_work /opt/actions-runner/.credentials* /opt/actions-runner/.runner 2>/dev/null || true
+      systemctl stop gha-runner.service 2>/dev/null || true
+      rm -rf /opt/actions-runner/_work /opt/actions-runner/_diag /opt/actions-runner/.credentials* /opt/actions-runner/.runner /etc/gha-runner/jitconfig 2>/dev/null || true
       docker system prune --all --force 2>/dev/null || true
       rm -f /etc/machine-id
       touch /etc/machine-id
@@ -57,6 +57,44 @@ write_files:
       echo 'Template cleaned. Shut down this VM and convert it to a Proxmox template.'
     SCRIPT
     )}
+  - path: /usr/local/sbin/gha-runner-start
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -Eeuo pipefail
+      exec /opt/actions-runner/run.sh --jitconfig "$(cat /run/gha-runner/jitconfig)"
+  # The controller writes /etc/gha-runner/jitconfig through the guest agent;
+  # PathChanged fires when that write is closed, so a partial file never starts it.
+  - path: /etc/systemd/system/gha-runner.path
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Start the GitHub Actions runner once its config is written
+
+      [Path]
+      PathChanged=/etc/gha-runner/jitconfig
+      Unit=gha-runner.service
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/gha-runner.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Ephemeral GitHub Actions runner
+      Wants=network-online.target
+      After=network-online.target docker.service
+
+      [Service]
+      User=${admin_username}
+      WorkingDirectory=/opt/actions-runner
+      RuntimeDirectory=gha-runner
+      RuntimeDirectoryMode=0700
+      ExecStartPre=+/usr/bin/install -m 0600 -o ${admin_username} -g ${admin_username} /etc/gha-runner/jitconfig /run/gha-runner/jitconfig
+      ExecStart=/usr/local/sbin/gha-runner-start
 runcmd:
   - [systemctl, start, qemu-guest-agent]
   - - bash
@@ -72,3 +110,17 @@ runcmd:
       apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
       systemctl enable --now docker
   - [bash, -c, "usermod -aG docker ${admin_username} && install -d -o ${admin_username} -g ${admin_username} /opt/actions-runner"]
+  - - bash
+    - -c
+    - |
+      set -Eeuo pipefail
+      cd /opt/actions-runner
+      curl -fsSL -o runner.tar.gz https://github.com/actions/runner/releases/download/v${runner_version}/actions-runner-linux-x64-${runner_version}.tar.gz
+      echo '${runner_sha256}  runner.tar.gz' | sha256sum -c -
+      tar xzf runner.tar.gz
+      rm runner.tar.gz
+      ./bin/installdependencies.sh
+      chown -R ${admin_username}:${admin_username} /opt/actions-runner
+      install -d -m 0700 /etc/gha-runner
+      systemctl daemon-reload
+      systemctl enable gha-runner.path
