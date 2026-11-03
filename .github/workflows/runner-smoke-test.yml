@@ -18,6 +18,28 @@ jobs:
           hostname
           id
           uname -a
+      - name: Check network isolation
+        env:
+          # Must be unreachable from a runner: the Proxmox API on the LAN and over NetBird.
+          BLOCKED: "<pve-lan-ip>:8006 <pve-lan-ip>:22 <pve-netbird-ip>:8006"
+        run: |
+          fail=0
+          gateway=$(ip -4 route show default | awk '{print $3; exit}')
+          getent hosts github.com >/dev/null && echo "ok: DNS resolves" || { echo "FAIL: DNS"; fail=1; }
+          curl -fsS -m 10 -o /dev/null https://api.github.com && echo "ok: internet reachable" || { echo "FAIL: internet"; fail=1; }
+          for target in $BLOCKED "$gateway:80" "$gateway:443"; do
+            if timeout 5 bash -c "</dev/tcp/${target%:*}/${target##*:}" 2>/dev/null; then
+              echo "FAIL: reached $target"; fail=1
+            else
+              echo "ok: $target blocked"
+            fi
+          done
+          if curl -6 -fsS -m 10 -o /dev/null https://ipv6.google.com 2>/dev/null; then
+            echo "FAIL: IPv6 reachable"; fail=1
+          else
+            echo "ok: IPv6 blocked"
+          fi
+          exit $fail
       - name: Check Docker
         run: |
           docker version

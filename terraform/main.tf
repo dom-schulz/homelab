@@ -71,7 +71,70 @@ resource "proxmox_virtual_environment_vm" "runner_template_builder" {
     }
   }
   network_device {
-    bridge = var.network_bridge
-    model  = "virtio"
+    bridge   = var.network_bridge
+    model    = "virtio"
+    firewall = true
+  }
+}
+
+# Firewall for the template. qm clone copies the template's firewall config, so
+# every runner VM gets these rules. They only take effect once the datacenter
+# firewall is enabled; see docs/runner-isolation.md.
+resource "proxmox_virtual_environment_firewall_options" "runner_template" {
+  node_name     = var.proxmox_node
+  vm_id         = proxmox_virtual_environment_vm.runner_template_builder.vm_id
+  enabled       = true
+  dhcp          = true
+  ndp           = false # IPv6 is rejected anyway
+  radv          = false # never let a runner advertise itself as an IPv6 router
+  macfilter     = true
+  input_policy  = "DROP"
+  output_policy = "ACCEPT"
+
+  # Rebuilding VM 910 deletes its firewall config; recreate it with the VM.
+  lifecycle {
+    replace_triggered_by = [proxmox_virtual_environment_vm.runner_template_builder]
+  }
+}
+
+# Rules match in order: allow DNS to the resolver, drop every private, NetBird
+# and link-local IPv4 destination, and reject all IPv6 (LAN hosts have global
+# IPv6 addresses; rejecting makes clients fall back to IPv4 at once). The rest of
+# IPv4 (the internet) is allowed by the outbound policy.
+resource "proxmox_virtual_environment_firewall_rules" "runner_template" {
+  node_name = var.proxmox_node
+  vm_id     = proxmox_virtual_environment_vm.runner_template_builder.vm_id
+
+  dynamic "rule" {
+    for_each = setproduct(var.runner_dns_servers, ["udp", "tcp"])
+    content {
+      type    = "out"
+      action  = "ACCEPT"
+      dest    = rule.value[0]
+      proto   = rule.value[1]
+      dport   = "53"
+      comment = "DNS"
+    }
+  }
+  dynamic "rule" {
+    for_each = var.runner_blocked_ipv4
+    content {
+      type    = "out"
+      action  = "DROP"
+      dest    = rule.value
+      comment = "No local network access"
+    }
+  }
+  rule {
+    type    = "out"
+    action  = "REJECT"
+    dest    = "::/0"
+    comment = "No IPv6"
+  }
+
+  depends_on = [proxmox_virtual_environment_firewall_options.runner_template]
+
+  lifecycle {
+    replace_triggered_by = [proxmox_virtual_environment_vm.runner_template_builder]
   }
 }

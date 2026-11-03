@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -21,6 +23,7 @@ type fakeProxmox struct {
 	failClone error
 	onClone   func()
 	written   map[string]string
+	runnerLog string // content of the runner log file inside the VM
 }
 
 func (f *fakeProxmox) record(format string, args ...any) {
@@ -95,6 +98,11 @@ func (f *fakeProxmox) WriteFile(ctx context.Context, vmid int, path, content str
 	return nil
 }
 
+func (f *fakeProxmox) ReadFile(ctx context.Context, vmid int, path string, limit int) (string, bool, error) {
+	f.record("read %d %s", vmid, path)
+	return f.runnerLog, false, nil
+}
+
 func (f *fakeProxmox) setStatus(vmid int, status string) {
 	for i := range f.pool {
 		if f.pool[i].VMID == vmid {
@@ -163,6 +171,7 @@ func newTestController(gh *fakeGitHub, pve *fakeProxmox) *Controller {
 			VMIDMax:      9202,
 			MaxPoolVMs:   2,
 			PollInterval: time.Millisecond,
+			RunnerLogDir: filepath.Join(os.TempDir(), "unused-runner-logs"),
 		},
 		github:  gh,
 		proxmox: pve,
@@ -460,5 +469,38 @@ func TestRunKeepsPollingAfterErrors(t *testing.T) {
 	}
 	if attempts != 3 {
 		t.Errorf("clone attempts = %d, want 3", attempts)
+	}
+}
+
+func TestFailedRunnerLogIsSavedBeforeDestroy(t *testing.T) {
+	gh := &fakeGitHub{job: homelabJob, states: []string{"offline"}}
+	pve := &fakeProxmox{agentUp: true, runnerLog: "Connecting to GitHub...\nfailed\n"}
+	c := newTestController(gh, pve)
+	c.cfg.RunnerLogDir = t.TempDir()
+
+	if err := c.RunOnce(context.Background(), false); err == nil {
+		t.Fatal("want runner online timeout")
+	}
+	read := slices.Index(pve.calls, "read 9200 "+runnerLogPath)
+	destroy := slices.Index(pve.calls, "destroy 9200")
+	if read < 0 || destroy < 0 || read > destroy {
+		t.Fatalf("log must be read before destroy: %q", pve.calls)
+	}
+	got, err := os.ReadFile(filepath.Join(c.cfg.RunnerLogDir, "gha-runner-9200-1700000000.log"))
+	if err != nil || string(got) != pve.runnerLog {
+		t.Errorf("saved log = %q, %v", got, err)
+	}
+}
+
+func TestSuccessfulOrUnbootedRunsSaveNoLog(t *testing.T) {
+	for name, pve := range map[string]*fakeProxmox{
+		"job succeeded":  {agentUp: true},
+		"agent never up": {agentUp: false},
+	} {
+		gh := &fakeGitHub{job: homelabJob, states: []string{"online", "gone"}}
+		newTestController(gh, pve).RunOnce(context.Background(), false)
+		if slices.ContainsFunc(pve.calls, func(c string) bool { return strings.HasPrefix(c, "read ") }) {
+			t.Errorf("%s: read the runner log: %q", name, pve.calls)
+		}
 	}
 }

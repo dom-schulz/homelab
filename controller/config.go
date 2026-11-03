@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +34,7 @@ type Config struct {
 	MaxPoolVMs         int
 
 	PollInterval time.Duration
+	RunnerLogDir string // where runner output from failed VMs is saved
 }
 
 type Repository struct {
@@ -100,6 +102,8 @@ func parseConfig(values map[string]string) (Config, error) {
 	if n := p.int("MAX_CONCURRENT_RUNNERS", "1"); n != 1 {
 		p.fail("MAX_CONCURRENT_RUNNERS must be 1, got %d", n)
 	}
+	home, _ := os.UserHomeDir()
+	cfg.RunnerLogDir = p.optional("RUNNER_LOG_DIR", filepath.Join(home, ".local", "state", "homelab", "runner-logs"))
 	cfg.PollInterval = time.Duration(p.int("POLL_INTERVAL_SECONDS", "20")) * time.Second
 	if cfg.PollInterval < 10*time.Second {
 		p.fail("POLL_INTERVAL_SECONDS must be at least 10")

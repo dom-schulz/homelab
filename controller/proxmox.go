@@ -225,6 +225,20 @@ func (p *Proxmox) WriteFile(ctx context.Context, vmid int, path, content string)
 	}, nil)
 }
 
+// ReadFile reads up to limit bytes of a guest file through the QEMU guest agent.
+// Proxmox decodes the agent's base64 (decode defaults to on).
+func (p *Proxmox) ReadFile(ctx context.Context, vmid int, path string, limit int) (string, bool, error) {
+	var data struct {
+		Content   string `json:"content"`
+		Truncated bool   `json:"truncated"`
+	}
+	err := p.do(ctx, http.MethodGet, p.vmPath(vmid, "/agent/file-read"), url.Values{
+		"file":  {path},
+		"count": {strconv.Itoa(limit)},
+	}, &data)
+	return data.Content, data.Truncated, err
+}
+
 // sleep waits for d or until ctx is done.
 func sleep(ctx context.Context, d time.Duration) error {
 	t := time.NewTimer(d)

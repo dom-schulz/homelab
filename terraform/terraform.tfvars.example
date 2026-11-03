@@ -8,6 +8,8 @@ image_storage = "local"
 snippet_storage = "local"
 network_bridge = "vmbr0"
 vm_ipv4_address = "dhcp"
+# Runner firewall: the LAN resolver runner VMs may use for DNS.
+runner_dns_servers = ["192.168.1.1"]
 admin_username = "ubuntu"
 ssh_public_key = "ssh-ed25519 AAAA... replace-me"
 # Pick an unused VM ID for the temporary builder.

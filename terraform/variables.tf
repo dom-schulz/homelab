@@ -37,6 +37,18 @@ variable "network_bridge" {
   default = "vmbr0"
 }
 
+variable "runner_dns_servers" {
+  description = "Resolvers runner VMs may reach on port 53, usually the LAN router."
+  type        = list(string)
+  default     = ["10.0.0.1"]
+}
+
+variable "runner_blocked_ipv4" {
+  description = "Destinations runner VMs may not reach: private, CGNAT/NetBird and link-local ranges."
+  type        = list(string)
+  default     = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "169.254.0.0/16"]
+}
+
 variable "vm_ipv4_address" {
   type    = string
   default = "dhcp"

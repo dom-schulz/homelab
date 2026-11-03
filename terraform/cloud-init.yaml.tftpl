@@ -40,7 +40,7 @@ write_files:
         *) echo 'Usage: prepare-runner-template [--remove-ssh-keys]' >&2; exit 2 ;;
       esac
       systemctl stop gha-runner.service 2>/dev/null || true
-      rm -rf /opt/actions-runner/_work /opt/actions-runner/_diag /opt/actions-runner/.credentials* /opt/actions-runner/.runner /etc/gha-runner/jitconfig 2>/dev/null || true
+      rm -rf /opt/actions-runner/_work /opt/actions-runner/_diag /opt/actions-runner/.credentials* /opt/actions-runner/.runner /etc/gha-runner/jitconfig /var/log/gha-runner.log 2>/dev/null || true
       docker system prune --all --force 2>/dev/null || true
       rm -f /etc/machine-id
       touch /etc/machine-id
@@ -87,6 +87,10 @@ write_files:
       Description=Ephemeral GitHub Actions runner
       Wants=network-online.target
       After=network-online.target docker.service
+      # Retry a runner that fails while starting (network not ready, GitHub
+      # hiccup), but give up after a few attempts.
+      StartLimitIntervalSec=120
+      StartLimitBurst=5
 
       [Service]
       User=${admin_username}
@@ -95,6 +99,12 @@ write_files:
       RuntimeDirectoryMode=0700
       ExecStartPre=+/usr/bin/install -m 0600 -o ${admin_username} -g ${admin_username} /etc/gha-runner/jitconfig /run/gha-runner/jitconfig
       ExecStart=/usr/local/sbin/gha-runner-start
+      Restart=on-failure
+      RestartSec=5
+      # Fixed path so the controller can read it through the guest agent before
+      # destroying a VM whose runner failed.
+      StandardOutput=append:/var/log/gha-runner.log
+      StandardError=append:/var/log/gha-runner.log
 runcmd:
   - [systemctl, start, qemu-guest-agent]
   - - bash

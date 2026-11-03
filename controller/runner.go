@@ -5,12 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const jitConfigPath = "/etc/gha-runner/jitconfig"
+const (
+	jitConfigPath = "/etc/gha-runner/jitconfig"
+	runnerLogPath = "/var/log/gha-runner.log" // the runner service's output, see the template
+	runnerLogMax  = 256 << 10
+)
 
 type githubAPI interface {
 	OldestQueuedJob(ctx context.Context) (*QueuedJob, error)
@@ -31,6 +37,7 @@ type proxmoxAPI interface {
 	Status(ctx context.Context, vmid int) (string, error)
 	AgentPing(ctx context.Context, vmid int) error
 	WriteFile(ctx context.Context, vmid int, path, content string) error
+	ReadFile(ctx context.Context, vmid int, path string, limit int) (string, bool, error)
 }
 
 type Timeouts struct {
@@ -43,7 +50,7 @@ type Timeouts struct {
 
 var defaultTimeouts = Timeouts{
 	AgentReady:   5 * time.Minute,
-	RunnerOnline: 5 * time.Minute,
+	RunnerOnline: 3 * time.Minute,
 	Job:          60 * time.Minute,
 	Cleanup:      5 * time.Minute,
 	Poll:         5 * time.Second,
@@ -263,9 +270,14 @@ func (c *Controller) serve(ctx context.Context, repo Repository, vmid int, name 
 
 	// Cleanup runs on every path, including Ctrl-C, with its own deadline.
 	var runnerID int64
+	var handedOff bool
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.timeouts.Cleanup)
 		defer cancel()
+		// The VM's logs die with it, so copy the runner's output out first.
+		if err != nil && handedOff {
+			c.saveRunnerLog(cleanupCtx, log, vmid, name)
+		}
 		if runnerID != 0 {
 			if rerr := c.github.RemoveRunner(cleanupCtx, repo, runnerID); rerr != nil {
 				log.Error("removing runner registration failed", "err", rerr)
@@ -309,6 +321,7 @@ func (c *Controller) serve(ctx context.Context, repo Repository, vmid int, name 
 	if err := c.proxmox.WriteFile(ctx, vmid, jitConfigPath, jitConfig); err != nil {
 		return err
 	}
+	handedOff = true
 	log.Info("runner config handed off; waiting for runner to come online", "runner_id", runnerID)
 
 	var finished bool
@@ -331,6 +344,29 @@ func (c *Controller) serve(ctx context.Context, repo Repository, vmid int, name 
 	log.Info("job finished; runner deregistered")
 	runnerID = 0 // GitHub already removed the ephemeral registration
 	return nil
+}
+
+// saveRunnerLog copies the runner service's output from the VM into
+// RunnerLogDir. Failures are only logged: cleanup must go on regardless.
+func (c *Controller) saveRunnerLog(ctx context.Context, log *slog.Logger, vmid int, name string) {
+	content, truncated, err := c.proxmox.ReadFile(ctx, vmid, runnerLogPath, runnerLogMax)
+	if err != nil {
+		log.Warn("could not read runner log from VM", "err", err)
+		return
+	}
+	if truncated {
+		content += fmt.Sprintf("\n[truncated at %d bytes]\n", runnerLogMax)
+	}
+	path := filepath.Join(c.cfg.RunnerLogDir, name+".log")
+	if err := os.MkdirAll(c.cfg.RunnerLogDir, 0o700); err != nil {
+		log.Warn("could not save runner log", "err", err)
+		return
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		log.Warn("could not save runner log", "err", err)
+		return
+	}
+	log.Info("saved runner log", "path", path)
 }
 
 // destroyVM stops and deletes the VM, but only after re-checking that it is a

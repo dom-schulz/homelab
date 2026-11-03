@@ -16,12 +16,16 @@ go build -o controller .
 
 `run` keeps serving one job at a time and logs and retries failed polls. Ctrl-C during a job still deregisters the runner and destroys the VM before exiting.
 
+## Runner logs
+
+If a job fails after the VM booted (the runner never comes online, the job times out, or Ctrl-C), the controller copies the runner service's output (`/var/log/gha-runner.log` in the VM) through the guest agent before destroying the VM, and saves it as `<runner name>.log` in `RUNNER_LOG_DIR` (default `~/.local/state/homelab/runner-logs`). Successful jobs keep their logs on GitHub. A controller crash mid-job loses that VM's log, since reconcile destroys it later without reading it.
+
 ## Recovering from crashes
 
 Every poll (and every `once`) first reconciles the pool against GitHub, so a crash, a sleeping laptop, or a failed cleanup is repaired on the next start. Runner VM names carry their creation time (`gha-runner-<vmid>-<unix>`), which lets the controller judge age without any local state:
 
-- A VM whose runner is no longer registered is destroyed once it is older than the setup window (agent wait + runner-online wait, 10 minutes). Its job finished, or it never got one.
-- A VM older than the maximum lifetime (setup + job timeout + cleanup, 75 minutes) is destroyed even if its runner is still registered.
+- A VM whose runner is no longer registered is destroyed once it is older than the setup window (agent wait + runner-online wait, 8 minutes). Its job finished, or it never got one.
+- A VM older than the maximum lifetime (setup + job timeout + cleanup, 73 minutes) is destroyed even if its runner is still registered.
 - A `gha-runner-` registration whose VM is no longer in the pool is removed.
 - Younger VMs are left alone, because they may still be setting up or running a job.
 
