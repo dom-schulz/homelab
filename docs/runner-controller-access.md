@@ -26,7 +26,7 @@ A dedicated user `gha-controller@pve` with token `controller` (`privsep 0`, so t
 | Place the clone in the pool | same call with `pool=gha-runners` | `VM.Allocate` on the pool | `/pool/gha-runners` |
 | Allocate the clone's disk | same call | `Datastore.AllocateSpace` | `/storage/local-lvm` |
 | Attach the clone's network | same call | `SDN.Use` | `/sdn/zones/localnetwork/vmbr0` |
-| Drop inherited `cicustom`, set `ciupgrade=0` | `POST .../qemu/{vmid}/config` | `VM.Config.Cloudinit` | `/pool/gha-runners` |
+| Drop inherited `cicustom`, set `ciupgrade=0` | `PUT .../qemu/{vmid}/config` | `VM.Config.Cloudinit` | `/pool/gha-runners` |
 | Start and stop | `POST .../status/start`, `.../status/stop` | `VM.PowerMgmt` | `/pool/gha-runners` |
 | Read VM status | `GET .../status/current` | `VM.Audit` | `/pool/gha-runners` |
 | Wait for the guest agent | `POST .../agent/ping` | `VM.GuestAgent.Audit` | `/pool/gha-runners` |
@@ -95,4 +95,5 @@ A dedicated thin pool for runners would isolate their space and narrow `Datastor
 ## Not yet verified
 
 - That `cicustom` and `ciupgrade` changes need only `VM.Config.Cloudinit`. The config endpoint accepts any `VM.Config.*` privilege at entry and checks individual options afterwards. If the controller gets a 403 there, the missing privilege belongs in `GhaRunnerPool`.
-- That `/sdn/zones/localnetwork/vmbr0` is the right `SDN.Use` path for a plain Linux bridge.
+
+Confirmed by the controller's first live run: the clone's `SDN.Use` check is on `/sdn/zones/localnetwork/vmbr0` for a plain Linux bridge (Proxmox names the path in its 403).

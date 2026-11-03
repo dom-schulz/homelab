@@ -15,3 +15,6 @@ terraform/netbird/.terraform/
 terraform/netbird/*.tfstate
 terraform/netbird/*.tfstate.*
 terraform/netbird/terraform.tfvars
+
+# Controller binary
+controller/controller
