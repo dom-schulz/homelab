@@ -123,3 +123,9 @@ variable "builder_disk_gb" {
   type    = number
   default = 16
 }
+
+variable "controller_user" {
+  description = "Proxmox user of the runner controller (terraform/proxmox-access)."
+  type        = string
+  default     = "gha-controller@pve"
+}

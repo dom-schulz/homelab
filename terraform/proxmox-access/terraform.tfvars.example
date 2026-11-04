@@ -1,0 +1,7 @@
+proxmox_api_url = "https://proxmox.example:8006/"
+proxmox_insecure_tls = true
+# Defaults match docs/runner-controller-access.md; override only if yours differ.
+# controller_user = "gha-controller@pve"
+# runner_pool = "gha-runners"
+# vm_storage = "local-lvm"
+# network_bridge = "vmbr0"

@@ -36,32 +36,18 @@ A dedicated user `gha-controller@pve` with token `controller` (`privsep 0`, so t
 | List runner VMs for reconciliation | `GET /pools/gha-runners` | `Pool.Audit` | `/pool/gha-runners` |
 | Follow its own clone/start/stop tasks | `GET /nodes/{node}/tasks/{upid}/status` | none for tasks the token started | n/a |
 
-Setup, run as root on the Proxmox host:
+Terraform manages everything except the token:
+
+- `terraform/proxmox-access/` holds the pool, the user, the four roles and the pool, storage and network ACLs. Its README covers setup and adopting objects created earlier by hand.
+- `terraform/runner-template/` holds the `/vms/910` grant. Proxmox deletes it whenever the template VM is destroyed, and cloning then fails with `403 Permission check failed (/vms/910, VM.Clone)`. Terraform recreates it with every rebuild.
+
+The token is created by hand, so its secret never reaches Terraform state. On pve:
 
 ```sh
-pveum pool add gha-runners --comment "Ephemeral GitHub Actions runner clones"
-
-pveum role add GhaRunnerPool --privs "VM.Allocate,VM.Audit,VM.Config.Cloudinit,VM.PowerMgmt,VM.GuestAgent.Audit,VM.GuestAgent.FileWrite,VM.GuestAgent.FileRead,Pool.Audit"
-pveum role add GhaTemplateClone --privs "VM.Clone"
-pveum role add GhaRunnerStorage --privs "Datastore.AllocateSpace"
-pveum role add GhaRunnerNetwork --privs "SDN.Use"
-
-pveum user add gha-controller@pve --comment "Runner controller; no login"
 pveum user token add gha-controller@pve controller --privsep 0 --comment "gha runner controller"
-
-pveum acl modify /pool/gha-runners --users gha-controller@pve --roles GhaRunnerPool
-pveum acl modify /vms/910 --users gha-controller@pve --roles GhaTemplateClone
-pveum acl modify /storage/local-lvm --users gha-controller@pve --roles GhaRunnerStorage
-pveum acl modify /sdn/zones/localnetwork/vmbr0 --users gha-controller@pve --roles GhaRunnerNetwork
 ```
 
-Rebuilding the template (Terraform replaces VM 910) drops the `/vms/910` grant along with the old VM, and cloning then fails with `403 Permission check failed (/vms/910, VM.Clone)`. Re-grant it after every rebuild:
-
-```sh
-pveum acl modify /vms/910 --users gha-controller@pve --roles GhaTemplateClone
-```
-
-`pveum user token add` prints the secret once. The controller's `PROXMOX_API_TOKEN` is `gha-controller@pve!controller=<secret>`. To rotate or recover a lost secret:
+It prints the secret once. The controller's `PROXMOX_API_TOKEN` is `gha-controller@pve!controller=<secret>`. To rotate or recover a lost secret:
 
 ```sh
 pveum user token remove gha-controller@pve controller

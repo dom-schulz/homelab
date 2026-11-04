@@ -138,3 +138,17 @@ resource "proxmox_virtual_environment_firewall_rules" "runner_template" {
     replace_triggered_by = [proxmox_virtual_environment_vm.runner_template_builder]
   }
 }
+
+# Lets the controller clone the template, and nothing else on it. Proxmox drops
+# this ACL when VM 910 is destroyed, so recreate it with the VM. The user and
+# role come from terraform/proxmox-access, which must be applied first.
+resource "proxmox_acl" "template_clone" {
+  path      = "/vms/${proxmox_virtual_environment_vm.runner_template_builder.vm_id}"
+  user_id   = var.controller_user
+  role_id   = "GhaTemplateClone"
+  propagate = true
+
+  lifecycle {
+    replace_triggered_by = [proxmox_virtual_environment_vm.runner_template_builder]
+  }
+}
