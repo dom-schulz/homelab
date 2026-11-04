@@ -18,4 +18,4 @@ The next platform milestone is:
 - Docker builds pushed to GHCR using immutable commit-SHA tags;
 - a small k3s application and external monitoring stack later.
 
-See terraform/README.md and plans/ephemeral-github-runners.md for the implementation boundary and decisions.
+See terraform/runner-template/README.md and plans/ephemeral-github-runners.md for the implementation boundary and decisions.

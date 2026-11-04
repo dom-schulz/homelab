@@ -1,0 +1,12 @@
+proxmox_api_url = "https://proxmox.example:8006/"
+proxmox_insecure_tls = true
+proxmox_node = "pve"
+template_storage = "local"
+container_storage = "local-lvm"
+network_bridge = "vmbr0"
+# Pick an unused ID outside the runner range (9200-9209) and away from the template (910).
+controller_vm_id = 920
+dns_servers = ["192.168.1.1"]
+proxmox_api_address = "192.168.1.50"
+ssh_sources = ["192.168.1.0/24"]
+ssh_public_key = "ssh-ed25519 AAAA... replace-me"

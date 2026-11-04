@@ -14,6 +14,8 @@ go build -o controller .
 ./controller run             # poll every POLL_INTERVAL_SECONDS until Ctrl-C
 ```
 
+For always-on use it runs as the `gha-controller` systemd service on its own LXC container; see [terraform/controller/README.md](../terraform/controller/README.md).
+
 `run` keeps serving one job at a time and logs and retries failed polls. Ctrl-C during a job still deregisters the runner and destroys the VM before exiting.
 
 ## Runner logs

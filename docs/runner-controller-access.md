@@ -1,6 +1,6 @@
 # Runner controller access
 
-The controller holds two credentials: a GitHub App key and a Proxmox API token. Both are scoped to exactly the API calls the controller makes. Neither belongs in the repository, the runner template, runner VMs, or workflow secrets. Store them on the controller host only, readable by its user alone (`chmod 600`).
+The controller holds two credentials: a GitHub App key and a Proxmox API token. Both are scoped to exactly the API calls the controller makes. Neither belongs in the repository, the runner template, runner VMs, or workflow secrets. Store them on the controller host only (`/etc/gha-controller/` on the controller container, see `terraform/controller/README.md`), readable by its user alone (`chmod 600`).
 
 Every permission below was taken from the API documentation for the specific call that needs it: GitHub's "Permissions required for GitHub Apps" reference and the Proxmox API schema (`pve-docs/api-viewer`), checked against Proxmox VE 9.2.
 

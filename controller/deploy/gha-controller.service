@@ -1,0 +1,25 @@
+[Unit]
+Description=Ephemeral GitHub Actions runner controller
+Documentation=https://github.com/dom-schulz/homelab/tree/main/controller
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=gha-controller
+Group=gha-controller
+ExecStart=/usr/local/bin/gha-controller run -config /etc/gha-controller/controller.env
+# Runner logs of failed VMs (RUNNER_LOG_DIR=/var/lib/gha-controller/runner-logs).
+StateDirectory=gha-controller
+StateDirectoryMode=0700
+Restart=on-failure
+RestartSec=30
+# SIGTERM makes the controller clean up an in-flight job, which may take up to
+# its 5-minute cleanup deadline.
+TimeoutStopSec=6min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

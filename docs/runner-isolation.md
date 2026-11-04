@@ -7,7 +7,7 @@ Runner VMs execute workflow code with Docker access, so they are treated as untr
 
 IPv6 is rejected outright because LAN hosts, the Proxmox host included, also have global IPv6 addresses that no private-range rule would catch, and blocking only the LAN's /64 would silently break when the ISP changes the prefix. Rejecting (rather than dropping) makes clients fall back to IPv4 immediately.
 
-The rules live on template 910 (`terraform/main.tf`); `qm clone` copies a VM's firewall config, so every runner inherits them. A future deploy target (the k3s API) gets one `ACCEPT` rule placed before the drops.
+The rules live on template 910 (`terraform/runner-template/main.tf`); `qm clone` copies a VM's firewall config, so every runner inherits them. A future deploy target (the k3s API) gets one `ACCEPT` rule placed before the drops.
 
 ## Enabling the firewall (operator, once)
 
