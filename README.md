@@ -20,6 +20,7 @@ The first working Immich VM validated that this Proxmox host can run self-hosted
 - Runner template Terraform: terraform/runner-template/README.md
 - Controller container: terraform/controller/README.md
 - Proxmox users, roles and ACLs: terraform/proxmox-access/README.md
+- Proxmox host firewall: terraform/proxmox-firewall/README.md
 - Ephemeral runner plan: plans/ephemeral-github-runners.md
 
 The repository intentionally does not contain GitHub App credentials, Proxmox credentials, Terraform state, or runner registration tokens.

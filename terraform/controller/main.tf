@@ -53,6 +53,11 @@ resource "proxmox_virtual_environment_container" "controller" {
         address = "dhcp" # only SSH needs the address; the controller connects out
       }
     }
+    ip_config {
+      ipv4 {
+        address = var.api_network_address # no gateway: pve is the only peer here
+      }
+    }
     user_account {
       keys = [var.ssh_public_key]
     }
@@ -61,6 +66,13 @@ resource "proxmox_virtual_environment_container" "controller" {
   network_interface {
     name     = "eth0"
     bridge   = var.network_bridge
+    firewall = true
+  }
+  # Reaches the Proxmox API over a bridge only pve is on, so the host firewall
+  # can allow it by interface rather than by a DHCP address.
+  network_interface {
+    name     = "eth1"
+    bridge   = var.api_bridge
     firewall = true
   }
 }

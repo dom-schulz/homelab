@@ -20,8 +20,8 @@ jobs:
           uname -a
       - name: Check network isolation
         env:
-          # Must be unreachable from a runner: the Proxmox API on the LAN and over NetBird.
-          BLOCKED: "<pve-lan-ip>:8006 <pve-lan-ip>:22 <pve-netbird-ip>:8006"
+          # Must be unreachable from a runner: the Proxmox API on the LAN, over NetBird and on the controller bridge.
+          BLOCKED: "<pve-lan-ip>:8006 <pve-lan-ip>:22 <pve-netbird-ip>:8006 10.10.10.1:8006"
         run: |
           fail=0
           gateway=$(ip -4 route show default | awk '{print $3; exit}')

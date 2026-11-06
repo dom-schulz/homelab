@@ -42,14 +42,26 @@ variable "dns_servers" {
   default     = ["10.0.0.1"]
 }
 
-variable "proxmox_api_address" {
-  description = "LAN address of the Proxmox API (port 8006), the only local destination the controller may reach."
+variable "api_bridge" {
+  description = "Bridge with no physical port that joins pve and the controller only."
   type        = string
-  default     = "<pve-lan-ip>"
+  default     = "vmbr1"
+}
+
+variable "api_network_address" {
+  description = "The controller's static address on api_bridge, in CIDR notation."
+  type        = string
+  default     = "10.10.10.2/24"
+}
+
+variable "proxmox_api_address" {
+  description = "pve's address on api_bridge (port 8006), the only local destination the controller may reach."
+  type        = string
+  default     = "10.10.10.1"
 
   validation {
     condition     = can(cidrhost("${var.proxmox_api_address}/32", 0))
-    error_message = "proxmox_api_address must be a plain IPv4 address (the Proxmox host's LAN address)."
+    error_message = "proxmox_api_address must be a plain IPv4 address (pve's address on api_bridge)."
   }
 }
 

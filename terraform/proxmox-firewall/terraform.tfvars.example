@@ -1,0 +1,8 @@
+proxmox_api_url = "https://proxmox.example:8006/"
+proxmox_insecure_tls = true
+admin_netbird_ip = "100.x.x.x"
+# proxmox_node = "pve"
+# netbird_interface = "wt0"
+# netbird_wireguard_port = 51820
+# controller_bridge = "vmbr1"
+# controller_ip = "10.10.10.2"

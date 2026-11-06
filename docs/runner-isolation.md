@@ -11,7 +11,7 @@ The rules live on template 910 (`terraform/runner-template/main.tf`); `qm clone`
 
 ## Enabling the firewall (operator, once)
 
-Proxmox ignores VM rules until the datacenter firewall is on, and turning it on also enables the host firewall (`enable` defaults to 1), whose default rules allow port 8006/22 only from the auto-detected `local_network`. Access over NetBird would be cut. To avoid that, the host firewall is disabled explicitly first; the host's own rules can be designed separately later.
+Proxmox ignores VM rules until the datacenter firewall is on, and turning it on also enables the host firewall (`enable` defaults to 1), whose default rules allow port 8006/22 only from the auto-detected `local_network`. Access over NetBird would be cut. To avoid that, the host firewall is disabled explicitly first; the host's own rules are in `terraform/proxmox-firewall/`.
 
 Keep a root shell on pve open (the web UI shell or `ssh root@<LAN IP>`) while doing this.
 

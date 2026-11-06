@@ -7,13 +7,17 @@ Terraform creates only the container and its firewall. Nothing secret passes thr
 ## Firewall
 
 - In: SSH from `ssh_sources` only; everything else dropped.
-- Out: DNS and the Proxmox API (`proxmox_api_address:8006`) are the only local destinations. Other private, NetBird and link-local IPv4 is dropped and IPv6 rejected, as for runner VMs. The internet (GitHub, Ubuntu mirrors) is allowed.
+- Out: DNS and the Proxmox API (`proxmox_api_address:8006`) are the only local destinations. The API is reached over `eth1` on `vmbr1`, a bridge only pve and the controller are on, so pve's host firewall can allow it by interface (`terraform/proxmox-firewall/README.md`). Other private, NetBird and link-local IPv4 is dropped and IPv6 rejected, as for runner VMs. The internet (GitHub, Ubuntu mirrors) is allowed.
 
 The controller reaches runner VMs only through the Proxmox API (guest agent), never over the network.
 
 ## Create
 
-Uses the same Proxmox credentials as `terraform/runner-template/`.
+Uses the same Proxmox credentials as `terraform/runner-template/`. Creating or updating the container attaches its NICs, which needs `SDN.Use` on each bridge; the privilege-separated Terraform token (`root@pam!terraform`) gets it from the built-in `PVESDNUser` role (`SDN.Audit`, `SDN.Use`). Without it, the apply fails with `403 Permission check failed (/sdn/zones/localnetwork/vmbr0, SDN.Use)`. On pve, once:
+
+```sh
+for b in vmbr0 vmbr1; do pveum acl modify /sdn/zones/localnetwork/$b --tokens 'root@pam!terraform' --roles PVESDNUser; done
+```
 
 ```sh
 cd terraform/controller
@@ -44,17 +48,18 @@ ssh root@<controller>
   chmod 600 controller.env github-app.pem
   # Then edit controller.env:
   #   GITHUB_APP_PRIVATE_KEY_FILE=/etc/gha-controller/github-app.pem
-  #   PROXMOX_API_URL=https://<Proxmox LAN address>:8006   (NetBird is not reachable from here)
+  #   PROXMOX_API_URL=https://pve:8006   (pve over vmbr1, via the hosts entry below)
   #   RUNNER_LOG_DIR=/var/lib/gha-controller/runner-logs
   #   PROXMOX_TLS_INSECURE=false
   systemctl start gha-controller
 ```
 
-The controller verifies the Proxmox API certificate, so the container must trust the Proxmox cluster CA. Without verification, any host on the LAN, runner VMs included, could impersonate pve with ARP spoofing and receive the token. pve's node certificate must list the address in `PROXMOX_API_URL`; check with `openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -ext subjectAltName` on pve. Install the CA before starting the service, and again if it is ever regenerated. On pve:
+The controller verifies the Proxmox API certificate, so the container must trust the Proxmox cluster CA. Without verification, any host on the LAN, runner VMs included, could impersonate pve with ARP spoofing and receive the token. pve's node certificate must list the name in `PROXMOX_API_URL`; check with `openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -ext subjectAltName` on pve. It lists `DNS:pve` but only the LAN IP, so the controller uses the name and resolves it to pve's `vmbr1` address. Proxmox rewrites only its own marked section of a container's `/etc/hosts`, so the line stays. Install the CA before starting the service, and again if it is ever regenerated. On pve:
 
 ```sh
 pct push <controller vmid> /etc/pve/pve-root-ca.pem /usr/local/share/ca-certificates/pve-root-ca.crt
 pct exec <controller vmid> -- update-ca-certificates
+pct exec <controller vmid> -- sh -c 'echo "10.10.10.1 pve" >> /etc/hosts'
 ```
 
 ## Operate

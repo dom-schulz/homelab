@@ -91,5 +91,5 @@ From the controller container, the token's effective permissions should list onl
 
 ```sh
 curl -s -H "Authorization: PVEAPIToken=gha-controller@pve!controller=<secret>" \
-  https://<pve-lan-ip>:8006/api2/json/access/permissions
+  https://pve:8006/api2/json/access/permissions
 ```
