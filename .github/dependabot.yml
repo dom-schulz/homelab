@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # The controller holds the Proxmox API token and GitHub App key: read these diffs before merging.
+  - package-ecosystem: gomod
+    directory: /controller
+    schedule:
+      interval: weekly
+    groups:
+      go:
+        patterns: ["*"]
+
+  - package-ecosystem: terraform
+    directories:
+      - /terraform/controller
+      - /terraform/netbird
+      - /terraform/proxmox-access
+      - /terraform/proxmox-firewall
+      - /terraform/runner-template
+    schedule:
+      interval: monthly
+    groups:
+      terraform:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
