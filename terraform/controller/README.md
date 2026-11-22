@@ -2,7 +2,7 @@
 
 An unprivileged Ubuntu 24.04 LXC container (VMID 920 by example) that runs the runner controller as a systemd service. It is its own Terraform root, apart from `terraform/runner-template/`, so template rebuilds never plan against the controller.
 
-Terraform creates only the container and its firewall. Nothing secret passes through Terraform or Proxmox: the binary is installed by `scripts/deploy-controller.sh`, and the two credentials are copied by hand.
+Terraform creates only the container and its firewall. Nothing secret passes through Terraform: `scripts/deploy-controller.sh` installs the binary and copies the two credentials in through pve.
 
 ## Firewall
 
@@ -19,7 +19,7 @@ Uses the same Proxmox credentials as `terraform/runner-template/`. Creating or u
 for b in vmbr0 vmbr1; do pveum acl modify /sdn/zones/localnetwork/$b --tokens 'root@pam!terraform' --roles PVESDNUser; done
 ```
 
-Root's SSH keys come from `admin-keys.pub` at the repository root (copy `admin-keys.pub.example`), the same list `scripts/sync-pve-admin-keys.sh root@<pve>` puts on pve, so one edit covers both hosts. Proxmox only applies keys when it creates a container, so changing the list recreates the controller; back up `/etc/gha-controller` first and redo Deploy and Credentials below.
+Root's SSH keys come from `admin-keys.pub` at the repository root (copy `admin-keys.pub.example`), the same list `scripts/sync-pve-admin-keys.sh root@<pve>` puts on pve, so one edit covers both hosts. Proxmox only applies keys when it creates a container, so changing the list recreates the controller; back up `/etc/gha-controller` first and rerun scripts/deploy-controller.sh.
 
 ```sh
 cd terraform/controller
@@ -31,38 +31,20 @@ terraform apply
 
 ## Deploy
 
-```sh
-scripts/deploy-controller.sh root@<controller address>   # terraform output ipv4, or on pve: pct exec 920 -- ip -4 addr show eth0
-```
+Keep the two credentials on your workstation in `~/.config/homelab/` (mode 600):
 
-It cross-compiles a static binary, installs it as `/usr/local/bin/gha-controller` with `controller/deploy/gha-controller.service`, and on first run creates the `gha-controller` system user and `/etc/gha-controller`. Rerun it to ship a new version. A restart stops any in-flight job.
+- `controller.env`, from `controller/config.example.env`, with `GITHUB_APP_PRIVATE_KEY_FILE=/etc/gha-controller/github-app.pem`, `PROXMOX_API_URL=https://pve:8006` and `PROXMOX_TLS_INSECURE=false`.
+- `github-app.pem`, the GitHub App private key.
 
-## Credentials (once)
-
-Stop any controller running elsewhere first; two would compete for jobs.
+Then, with SSH access to pve:
 
 ```sh
-scp ~/.config/homelab/controller.env root@<controller>:/etc/gha-controller/controller.env
-scp <path to GitHub App .pem> root@<controller>:/etc/gha-controller/github-app.pem
-ssh root@<controller>
-  cd /etc/gha-controller
-  chown gha-controller:gha-controller controller.env github-app.pem
-  chmod 600 controller.env github-app.pem
-  # Then edit controller.env:
-  #   GITHUB_APP_PRIVATE_KEY_FILE=/etc/gha-controller/github-app.pem
-  #   PROXMOX_API_URL=https://pve:8006   (pve over vmbr1, via the hosts entry below)
-  #   RUNNER_LOG_DIR=/var/lib/gha-controller/runner-logs
-  #   PROXMOX_TLS_INSECURE=false
-  systemctl start gha-controller
+scripts/deploy-controller.sh root@<pve address>
 ```
 
-The controller verifies the Proxmox API certificate, so the container must trust the Proxmox cluster CA. Without verification, any host on the LAN, runner VMs included, could impersonate pve with ARP spoofing and receive the token. pve's node certificate must list the name in `PROXMOX_API_URL`; check with `openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -ext subjectAltName` on pve. It lists `DNS:pve` but only the LAN IP, so the controller uses the name and resolves it to pve's `vmbr1` address. Proxmox rewrites only its own marked section of a container's `/etc/hosts`, so the line stays. Install the CA before starting the service, and again if it is ever regenerated. On pve:
+It cross-compiles a static binary and installs it in container 920 with `pct push` and `pct exec`, so it never needs the container's own address. Rerun it to ship a new version; a restart stops any in-flight job. On a fresh container it also creates the `gha-controller` user and `/etc/gha-controller`, and copies in the credentials; credentials already there are never overwritten, so to change one, edit it in the container and `systemctl restart gha-controller`. Stop any controller running elsewhere first; two would compete for jobs.
 
-```sh
-pct push <controller vmid> /etc/pve/pve-root-ca.pem /usr/local/share/ca-certificates/pve-root-ca.crt
-pct exec <controller vmid> -- update-ca-certificates
-pct exec <controller vmid> -- sh -c 'echo "10.10.10.1 pve" >> /etc/hosts'
-```
+The controller verifies the Proxmox API certificate, so the container must trust the Proxmox cluster CA. Without verification, any host on the LAN, runner VMs included, could impersonate pve with ARP spoofing and receive the token. pve's node certificate lists `DNS:pve` but only the LAN IP (check with `openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -ext subjectAltName`), so the controller uses the name and resolves it to pve's `vmbr1` address. The script installs `/etc/pve/pve-root-ca.pem` and adds that hosts entry on every run; Proxmox rewrites only its own marked section of a container's `/etc/hosts`, so the line stays.
 
 ## Operate
 

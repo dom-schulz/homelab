@@ -78,7 +78,7 @@ variable "blocked_ipv4" {
 }
 
 variable "admin_keys_file" {
-  description = "SSH public keys authorized for root, one per line; used by scripts/deploy-controller.sh. The same list scripts/sync-pve-admin-keys.sh puts on pve. Changing it recreates the container."
+  description = "SSH public keys authorized for root, one per line. The same list scripts/sync-pve-admin-keys.sh puts on pve. Changing it recreates the container."
   type        = string
   default     = null # admin-keys.pub at the repository root
 }
