@@ -20,9 +20,13 @@ jobs:
           uname -a
       - name: Check network isolation
         env:
-          # Must be unreachable from a runner: the Proxmox API on the LAN, over NetBird and on the controller bridge.
-          BLOCKED: "<pve-lan-ip>:8006 <pve-lan-ip>:22 <pve-netbird-ip>:8006 10.10.10.1:8006"
+          # Space-separated host:port targets that must be unreachable from a runner: the Proxmox API
+          # on the LAN, over NetBird and on the controller bridge. Kept in a secret so the addresses
+          # stay out of the public logs.
+          BLOCKED: ${{ secrets.RUNNER_BLOCKED_TARGETS }}
         run: |
+          test -n "$BLOCKED" || { echo "FAIL: RUNNER_BLOCKED_TARGETS secret is not set"; exit 1; }
+          for target in $BLOCKED; do echo "::add-mask::${target%:*}"; echo "::add-mask::$target"; done
           fail=0
           gateway=$(ip -4 route show default | awk '{print $3; exit}')
           getent hosts github.com >/dev/null && echo "ok: DNS resolves" || { echo "FAIL: DNS"; fail=1; }

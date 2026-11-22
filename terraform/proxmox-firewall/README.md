@@ -19,19 +19,19 @@ Guests are unaffected: these rules filter traffic *to pve*, and VM and container
 ## Ways in
 
 - **Normally:** NetBird.
-- **NetBird down, at home:** SSH over the LAN, and tunnel the web UI through it: `ssh -L 8006:localhost:8006 root@<pve-lan-ip>`, then open `https://localhost:8006`.
+- **NetBird down, at home:** SSH over the LAN, and tunnel the web UI through it: `ssh -L 8006:localhost:8006 root@<pve LAN IP>`, then open `https://localhost:8006`.
 - **Locked out entirely:** plug a keyboard and monitor into pve, log in as root, and run `pvesh set /nodes/pve/firewall/options --enable 0`. That turns the host firewall off; VM firewalls keep working.
 
 ## Rollout
 
-The order matters: every path that will stay open must work before the firewall closes the others. Keep two root sessions on pve open throughout, one over NetBird (`ssh root@<pve NetBird IP>`) and one over the LAN (`ssh root@<pve-lan-ip>`), so that losing one path never locks you out.
+The order matters: every path that will stay open must work before the firewall closes the others. Keep two root sessions on pve open throughout, one over NetBird (`ssh root@<pve NetBird IP>`) and one over the LAN (`ssh root@<pve LAN IP>`), so that losing one path never locks you out.
 
 ### 1. SSH key-only
 
 First confirm key login works on its own, from the workstation; it must print `key-ok`:
 
 ```sh
-ssh -o PreferredAuthentications=publickey -o PasswordAuthentication=no root@<pve-lan-ip> true && echo key-ok
+ssh -o PreferredAuthentications=publickey -o PasswordAuthentication=no root@<pve LAN IP> true && echo key-ok
 ```
 
 Then on pve:
@@ -41,7 +41,7 @@ printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLo
 sshd -t && systemctl reload ssh
 ```
 
-`sshd -T | grep -E 'passwordauthentication|kbdinteractive|permitrootlogin'` shows `no`, `no` and `without-password` (sshd's name for `prohibit-password`). That reads the config, not the running daemon; the real test is from a new workstation terminal: `ssh -o PubkeyAuthentication=no root@<pve-lan-ip>` must be refused without a password prompt. Terraform's `runner-template` root logs in with ssh-agent keys and is unaffected.
+`sshd -T | grep -E 'passwordauthentication|kbdinteractive|permitrootlogin'` shows `no`, `no` and `without-password` (sshd's name for `prohibit-password`). That reads the config, not the running daemon; the real test is from a new workstation terminal: `ssh -o PubkeyAuthentication=no root@<pve LAN IP>` must be refused without a password prompt. Terraform's `runner-template` root logs in with ssh-agent keys and is unaffected.
 
 ### 2. Controller bridge
 
@@ -57,13 +57,13 @@ ifreload -a
 
 ### 3. Move the controller onto it
 
-`terraform/controller/` adds `eth1` on `vmbr1` and changes the container firewall's API destination to `10.10.10.1`. From then on the controller cannot reach `<pve-lan-ip>`.
+`terraform/controller/` adds `eth1` on `vmbr1` and changes the container firewall's API destination to `10.10.10.1`. From then on the controller cannot reach `<pve LAN IP>`.
 
 1. Check no job is running (`pvesh get /pools/gha-runners --output-format json | grep -c vmid` is `0`), then `pct exec 920 -- systemctl stop gha-controller`.
 2. Remove any `proxmox_api_address` line from `terraform/controller/terraform.tfvars`; it would override the new default.
 3. Grant the Terraform token `SDN.Use` on both bridges (see `terraform/controller/README.md`). Updating the container re-sends every NIC, so without it the apply fails with `403 Permission check failed (/sdn/zones/localnetwork/vmbr0, SDN.Use)`.
 4. `terraform plan` shows `0 to add, 2 to change, 0 to destroy`: the container in place and its firewall rules. Stop on any replacement; replacing the container wipes its credentials. Then `terraform apply`.
-5. The apply reboots the container, and the service starts again by itself with the old URL (`dial tcp <pve-lan-ip>:8006: i/o timeout` in its log). That is expected until the next step.
+5. The apply reboots the container, and the service starts again by itself with the old URL (`dial tcp <pve LAN IP>:8006: i/o timeout` in its log). That is expected until the next step.
 
 Check on pve: `pct config 920 | grep ^net` lists `net1` with `bridge=vmbr1,ip=10.10.10.2/24,firewall=1`, and `pct exec 920 -- ip -br addr show eth1` shows the address.
 
@@ -134,8 +134,8 @@ From the workstation, each in a new connection:
 ```sh
 nc -vz -w 5 <pve NetBird IP> 8006
 nc -vz -w 5 <pve NetBird IP> 22
-nc -vz -w 5 <pve-lan-ip> 22
-nc -vz -w 5 <pve-lan-ip> 8006
+nc -vz -w 5 <pve LAN IP> 22
+nc -vz -w 5 <pve LAN IP> 8006
 ```
 
-The first three succeed; the last times out. From a phone on the Wi-Fi, `https://<pve-lan-ip>:8006` times out too. On pve, `pct exec 920 -- curl -sS -o /dev/null -w '%{http_code}\n' https://pve:8006/api2/json/version` still prints `401`, and the **Runner smoke test** workflow passes.
+The first three succeed; the last times out. From a phone on the Wi-Fi, `https://<pve LAN IP>:8006` times out too. On pve, `pct exec 920 -- curl -sS -o /dev/null -w '%{http_code}\n' https://pve:8006/api2/json/version` still prints `401`, and the **Runner smoke test** workflow passes.

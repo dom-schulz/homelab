@@ -2,7 +2,7 @@
 
 This separate stack manages the NetBird Cloud control plane for the homelab.
 
-Terraform manages single-peer groups, the homelab Network, the runner resource at `<runner-ip>/32`, the Proxmox routing peer, and TCP 22/8006 policies. It does not install NetBird, enroll peers, configure Proxmox networking, enable Linux forwarding, or manage ephemeral runner peers.
+Terraform manages single-peer groups, the homelab Network, the runner resource (`runner_address`), the Proxmox routing peer, and TCP 22/8006 policies. It does not install NetBird, enroll peers, configure Proxmox networking, enable Linux forwarding, or manage ephemeral runner peers.
 
 ## Before the first run
 
@@ -36,10 +36,10 @@ Review the plan before applying it. Confirm the old unrestricted policy is impor
 ```bash
 netbird status -d
 netbird networks ls
-ip route get <runner-ip>
+ip route get <runner IP>
 nc -vz -w 5 <proxmox-host-address> 22
 nc -vz -w 5 <proxmox-host-address> 8006
-nc -vz -w 5 <runner-ip> 22
+nc -vz -w 5 <runner IP> 22
 ```
 
 Unrelated ports should remain inaccessible. The iPhone is not assigned to the administrative group.

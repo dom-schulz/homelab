@@ -13,7 +13,7 @@ GITHUB_APP_ID=123
 GITHUB_APP_PRIVATE_KEY_FILE=/home/me/.config/homelab/gha-runners.pem
 GITHUB_INSTALLATION_ID=456
 GITHUB_REPOSITORIES=dom-schulz/homelab, dom-schulz/drydock
-PROXMOX_API_URL=https://<pve-netbird-ip>:8006/
+PROXMOX_API_URL=https://192.0.2.10:8006/
 PROXMOX_API_TOKEN="gha-controller@pve!controller=secret"
 PROXMOX_TLS_INSECURE=true
 PROXMOX_RUNNER_POOL=gha-runners
@@ -43,7 +43,7 @@ func TestLoadConfig(t *testing.T) {
 	if len(cfg.Repositories) != 2 || cfg.Repositories[1].String() != "dom-schulz/drydock" {
 		t.Errorf("repositories = %v", cfg.Repositories)
 	}
-	if cfg.ProxmoxURL != "https://<pve-netbird-ip>:8006" || cfg.ProxmoxToken != "gha-controller@pve!controller=secret" {
+	if cfg.ProxmoxURL != "https://192.0.2.10:8006" || cfg.ProxmoxToken != "gha-controller@pve!controller=secret" {
 		t.Errorf("proxmox = %q %q", cfg.ProxmoxURL, cfg.ProxmoxToken)
 	}
 	if cfg.ProxmoxNode != "pve" || !cfg.ProxmoxTLSInsecure {
