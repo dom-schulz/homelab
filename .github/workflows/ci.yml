@@ -1,0 +1,51 @@
+name: CI
+
+# Static checks only, on GitHub-hosted runners: PR code (including Dependabot's) never
+# runs on the homelab runners, and nothing here touches Proxmox, NetBird or any secret.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: controller
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: controller/go.mod
+          cache-dependency-path: controller/go.sum
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build -o /dev/null .
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@v4
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff terraform
+      # init -backend=false downloads the providers pinned in each .terraform.lock.hcl
+      # without touching state; validate then checks the config without credentials.
+      - name: terraform validate
+        run: |
+          for dir in terraform/*/; do
+            echo "::group::$dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done

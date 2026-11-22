@@ -15,7 +15,7 @@ resource "proxmox_virtual_environment_user" "controller" {
 }
 
 resource "proxmox_virtual_environment_role" "runner_pool" {
-  role_id    = "GhaRunnerPool"
+  role_id = "GhaRunnerPool"
   privileges = [
     "Pool.Audit",
     "VM.Allocate",
