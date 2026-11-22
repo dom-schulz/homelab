@@ -59,6 +59,9 @@ func (g *GitHub) OldestQueuedJob(ctx context.Context) (*QueuedJob, error) {
 				return nil, fmt.Errorf("listing %s runs in %s: %w", status, repo, err)
 			}
 			for _, run := range runs.WorkflowRuns {
+				if !trustedRun(run, repo) {
+					continue
+				}
 				jobs, _, err := g.client.Actions.ListWorkflowJobs(ctx, repo.Owner, repo.Name, run.GetID(), &github.ListWorkflowJobsOptions{
 					ListOptions: github.ListOptions{PerPage: 100},
 				})
@@ -78,6 +81,18 @@ func (g *GitHub) OldestQueuedJob(ctx context.Context) (*QueuedJob, error) {
 		}
 	}
 	return oldest, nil
+}
+
+// trustedEvents are the triggers only someone with write access can start.
+// Pull request events are left out: a fork's PR runs workflow files from the
+// fork, so anyone could otherwise get a runner VM on the homelab.
+var trustedEvents = []string{"push", "workflow_dispatch", "schedule"}
+
+// trustedRun reports whether a run may get a runner: a trusted event on code
+// from the repository itself, never from a fork.
+func trustedRun(run *github.WorkflowRun, repo Repository) bool {
+	return slices.Contains(trustedEvents, run.GetEvent()) &&
+		run.GetHeadRepository().GetFullName() == repo.String()
 }
 
 // CreateRunner registers a just-in-time runner and returns its ID and the
