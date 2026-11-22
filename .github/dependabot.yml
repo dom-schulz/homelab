@@ -17,7 +17,7 @@ updates:
       - /terraform/proxmox-firewall
       - /terraform/runner-template
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       terraform:
         patterns: ["*"]
@@ -25,7 +25,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       actions:
         patterns: ["*"]
