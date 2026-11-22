@@ -41,13 +41,13 @@ func fakeGitHubAPI(t *testing.T, routes map[string]string) *GitHub {
 
 func TestOldestQueuedJobAcrossRepositories(t *testing.T) {
 	g := fakeGitHubAPI(t, map[string]string{
-		"GET /repos/me/a/actions/runs?status=queued":      `{"workflow_runs":[{"id":1}]}`,
+		"GET /repos/me/a/actions/runs?status=queued":      `{"workflow_runs":[{"id":1,"event":"push","head_repository":{"full_name":"me/a"}}]}`,
 		"GET /repos/me/a/actions/runs?status=in_progress": `{"workflow_runs":[]}`,
 		"GET /repos/me/a/actions/runs/1/jobs": `{"jobs":[
 			{"id":11,"name":"newer","status":"queued","labels":["self-hosted","homelab-ephemeral"],"created_at":"2026-10-27T10:05:00Z"},
 			{"id":12,"name":"other label","status":"queued","labels":["ubuntu-latest"],"created_at":"2026-10-27T09:00:00Z"}]}`,
 		"GET /repos/me/b/actions/runs?status=queued":      `{"workflow_runs":[]}`,
-		"GET /repos/me/b/actions/runs?status=in_progress": `{"workflow_runs":[{"id":2}]}`,
+		"GET /repos/me/b/actions/runs?status=in_progress": `{"workflow_runs":[{"id":2,"event":"workflow_dispatch","head_repository":{"full_name":"me/b"}}]}`,
 		"GET /repos/me/b/actions/runs/2/jobs": `{"jobs":[
 			{"id":21,"name":"running","status":"in_progress","labels":["homelab-ephemeral"],"created_at":"2026-10-27T08:00:00Z"},
 			{"id":22,"name":"oldest","status":"queued","labels":["homelab-ephemeral"],"created_at":"2026-10-27T10:00:00Z"}]}`,
@@ -59,6 +59,28 @@ func TestOldestQueuedJobAcrossRepositories(t *testing.T) {
 	}
 	if job == nil || job.JobID != 22 || job.Repo.Name != "b" {
 		t.Fatalf("job = %+v, want job 22 in me/b", job)
+	}
+}
+
+func TestOldestQueuedJobSkipsUntrustedRuns(t *testing.T) {
+	g := fakeGitHubAPI(t, map[string]string{
+		"GET /repos/me/a/actions/runs?status=queued": `{"workflow_runs":[
+			{"id":1,"event":"pull_request","head_repository":{"full_name":"me/a"}},
+			{"id":2,"event":"pull_request_target","head_repository":{"full_name":"stranger/a"}},
+			{"id":3,"event":"push","head_repository":{"full_name":"stranger/a"}},
+			{"id":4,"event":"push"}]}`,
+		"GET /repos/me/a/actions/runs?status=in_progress": `{"workflow_runs":[]}`,
+		"GET /repos/me/b/actions/runs?status=queued":      `{"workflow_runs":[]}`,
+		"GET /repos/me/b/actions/runs?status=in_progress": `{"workflow_runs":[]}`,
+	})
+
+	// No jobs routes exist, so looking at any of these runs' jobs would fail.
+	job, err := g.OldestQueuedJob(context.Background())
+	if err != nil {
+		t.Fatalf("OldestQueuedJob: %v", err)
+	}
+	if job != nil {
+		t.Fatalf("job = %+v, want none", job)
 	}
 }
 
