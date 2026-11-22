@@ -59,7 +59,7 @@ resource "proxmox_virtual_environment_container" "controller" {
       }
     }
     user_account {
-      keys = [var.ssh_public_key]
+      keys = local.admin_keys
     }
   }
 
@@ -144,4 +144,12 @@ resource "proxmox_virtual_environment_firewall_rules" "controller" {
   }
 
   depends_on = [proxmox_virtual_environment_firewall_options.controller]
+}
+
+locals {
+  # One key per line; blank lines and comments are skipped.
+  admin_keys = [
+    for line in split("\n", file(coalesce(var.admin_keys_file, "${path.module}/../../admin-keys.pub"))) : trimspace(line)
+    if trimspace(line) != "" && !startswith(trimspace(line), "#")
+  ]
 }

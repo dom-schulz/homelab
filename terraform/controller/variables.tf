@@ -77,9 +77,10 @@ variable "blocked_ipv4" {
   default     = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "169.254.0.0/16"]
 }
 
-variable "ssh_public_key" {
-  description = "Authorized for root; used by scripts/deploy-controller.sh."
+variable "admin_keys_file" {
+  description = "SSH public keys authorized for root, one per line; used by scripts/deploy-controller.sh. The same list scripts/sync-pve-admin-keys.sh puts on pve. Changing it recreates the container."
   type        = string
+  default     = null # admin-keys.pub at the repository root
 }
 
 variable "cpu_cores" {
