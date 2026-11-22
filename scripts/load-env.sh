@@ -11,7 +11,6 @@ if [[ ! -f "${env_file}" ]]; then
 fi
 
 set -a
-# shellcheck source=/dev/null # path is chosen at runtime
 source "${env_file}"
 set +a
 

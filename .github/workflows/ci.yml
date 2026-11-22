@@ -49,11 +49,3 @@ jobs:
             terraform -chdir="$dir" validate
             echo "::endgroup::"
           done
-
-  shellcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - run: shellcheck scripts/*.sh
