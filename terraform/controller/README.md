@@ -19,6 +19,8 @@ Uses the same Proxmox credentials as `terraform/runner-template/`. Creating or u
 for b in vmbr0 vmbr1; do pveum acl modify /sdn/zones/localnetwork/$b --tokens 'root@pam!terraform' --roles PVESDNUser; done
 ```
 
+Root's SSH keys come from `admin-keys.pub` at the repository root (copy `admin-keys.pub.example`), the same list `scripts/sync-pve-admin-keys.sh root@<pve>` puts on pve, so one edit covers both hosts. Proxmox only applies keys when it creates a container, so changing the list recreates the controller; back up `/etc/gha-controller` first and redo Deploy and Credentials below.
+
 ```sh
 cd terraform/controller
 cp terraform.tfvars.example terraform.tfvars   # fill in

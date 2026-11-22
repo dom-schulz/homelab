@@ -1,0 +1,4 @@
+# Copy to admin-keys.pub (not committed): the SSH public keys allowed to log in
+# as root on pve (scripts/sync-pve-admin-keys.sh) and the controller container
+# (terraform/controller). One key per line, e.g. from ~/.ssh/id_ed25519.pub.
+ssh-ed25519 AAAA... laptop
